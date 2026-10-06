@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="http://cps.sp.gov.br/produtos">
+    <ns0:Header />
+    <ns0:Body>
+        <ns1:consultarProdutoResponse>
+            <ns1:nome>Notebook</ns1:nome>
+            <ns1:descricao>Notebook com 8 GB de memória RAM e SSD de 256 GB.</ns1:descricao>
+            <ns1:marca>TechMax</ns1:marca>
+            <ns1:quantidadeEstoque>15</ns1:quantidadeEstoque>
+        </ns1:consultarProdutoResponse>
+    </ns0:Body>
+</ns0:Envelope>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:tns="http://cps.sp.gov.br/produtos"
+           targetNamespace="http://cps.sp.gov.br/produtos"
+           elementFormDefault="qualified">
+
+    <!-- O código identifica um produto e deve ser um inteiro positivo. -->
+    <xs:simpleType name="codigoProduto">
+        <xs:restriction base="xs:int">
+            <xs:minInclusive value="1"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="quantidadeEmEstoque">
+        <xs:restriction base="xs:int">
+            <xs:minInclusive value="0"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:element name="consultarProdutoRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="codigo" type="tns:codigoProduto"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:element name="consultarProdutoResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="nome" type="xs:string"/>
+                <xs:element name="descricao" type="xs:string"/>
+                <xs:element name="marca" type="xs:string"/>
+                <xs:element name="quantidadeEstoque" type="tns:quantidadeEmEstoque"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

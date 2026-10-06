@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:prod="http://cps.sp.gov.br/produtos">
+    <soapenv:Header/>
+    <soapenv:Body>
+        <prod:consultarProdutoRequest>
+            <prod:codigo>1</prod:codigo>
+        </prod:consultarProdutoRequest>
+    </soapenv:Body>
+</soapenv:Envelope>

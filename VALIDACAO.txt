@@ -1,0 +1,35 @@
+Validação do Web Service de produtos
+
+Build Maven: clean verify concluído.
+Testes automatizados: 10 executados; zero falhas, erros ou testes ignorados.
+Compilação: bytecode Java 17 (release 17).
+Execução de validação: Eclipse Temurin Java 17.0.20.1, Windows.
+Catálogo: dados fictícios em memória.
+
+Verificações adicionais no JAR em execução via HTTP:
+- OK: WSDL publicado por HTTP
+- OK: Namespace do WSDL consistente
+- OK: Operação consultarProduto presente no WSDL
+- OK: Endereço SOAP do WSDL corresponde ao servidor
+- OK: Contrato contém exatamente os quatro campos solicitados
+- OK: Produto 1: resposta SOAP bem-sucedida por HTTP
+- OK: Produto 1: nome, descrição, marca e quantidade conferidos
+- OK: Produto 2: resposta SOAP bem-sucedida por HTTP
+- OK: Produto 2: nome, descrição, marca e quantidade conferidos
+- OK: Produto 3: resposta SOAP bem-sucedida por HTTP
+- OK: Produto 3: nome, descrição, marca e quantidade conferidos
+- OK: Falha SOAP por HTTP para produto inexistente
+- OK: Falha Client para produto inexistente
+- OK: Mensagem de produto inexistente contém o código consultado
+- OK: Falha SOAP por HTTP para código zero
+- OK: Falha Client para código zero
+- OK: Falha SOAP por HTTP para código negativo
+- OK: Falha Client para código negativo
+- OK: Falha SOAP por HTTP para código não numérico
+- OK: Falha Client para código não numérico
+- OK: Falha SOAP por HTTP para inteiro acima do limite
+- OK: Falha Client para inteiro acima do limite
+- OK: Falha SOAP por HTTP para código ausente
+- OK: Falha Client para código ausente
+- OK: Falha SOAP por HTTP para namespace do código incorreto
+- OK: Falha Client para namespace do código incorreto
