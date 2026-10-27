@@ -1,186 +1,211 @@
-# Web Service SOAP de Produtos
+# Web Service SOAP de Produtos com WS-Security
 
-Implementação da atividade baseada no exemplo de consulta de alunos da aula 5.
-O serviço recebe um código de produto e devolve **nome, descrição, marca e
-quantidade em estoque**. Utiliza Java 17, Spring Boot 3.5.16, Spring Web Services,
-Maven, XML, XSD e SOAP 1.1.
+Consulta de produtos por código com Java 17, Spring Boot 3.5.16, Spring Web Services
+4.1.4, Apache WSS4J, JAXB e SOAP 1.1. A resposta contém **nome, descrição, marca e
+quantidade em estoque**. O catálogo é fictício, em memória, sem banco de dados.
 
-## Executar o arquivo pronto
+## Executar
 
-1. Extraia todo o ZIP.
-2. Tenha Java 17 ou superior instalado, disponível no `PATH` ou configurado em `JAVA_HOME`.
-3. No Windows, abra `iniciar.bat`. Em outros sistemas, ou para executar pelo terminal,
-   na pasta `produtos-soap` use:
+Instale Java 17 ou superior. Defina as mesmas credenciais no servidor e no cliente.
+O serviço **não inicia com usuário ou senha vazios**; não há senha padrão no código.
+Os valores abaixo são exemplos locais: escolha sua própria senha.
+
+Windows / PowerShell, na pasta do projeto:
+
+```powershell
+$env:SOAP_SECURITY_USERNAME = 'aluno'
+$env:SOAP_SECURITY_PASSWORD = 'substitua-por-uma-senha-forte'
+.\iniciar.bat
+```
+
+Linux / macOS:
 
 ```bash
+export SOAP_SECURITY_USERNAME='aluno'
+export SOAP_SECURITY_PASSWORD='substitua-por-uma-senha-forte'
 java -jar executavel/produtos-soap.jar
 ```
 
-O JAR inclui as dependências e não exige Maven para executar.
-Mantenha o terminal aberto enquanto estiver usando o serviço; `Ctrl+C` encerra a aplicação.
+O JAR inclui as dependências. Encerre com `Ctrl+C`.
 
-- **WSDL:** http://localhost:8080/ws/produtos.wsdl
-- **Endereço para enviar requisições SOAP:** http://localhost:8080/ws
-- **Operação:** `consultarProduto`
-- **Namespace:** `http://cps.sp.gov.br/produtos`
+- WSDL: `http://localhost:8080/ws/produtos.wsdl` (consulta pública do contrato).
+- Endpoint SOAP: `http://localhost:8080/ws`.
+- Namespace: `http://cps.sp.gov.br/produtos`.
+- Operação: `consultarProduto`.
 
-O namespace é o identificador do contrato. Para chamar o serviço, utilize o endereço local `/ws`.
+Se precisar de outra porta, execute `java -jar executavel/produtos-soap.jar --server.port=8081`
+e ajuste a URL do cliente.
 
-## Compilar ou alterar o código
+## Como funciona a segurança
 
-Requisitos: JDK 17 ou superior. O Maven Wrapper incluído baixa o Maven 3.9.11 na
-primeira utilização. É necessário acesso à internet para baixar Maven e dependências.
+O `SecurityConfig` registra o `ProdutoSecurityInterceptor` **antes** da validação XSD
+e do endpoint. Cada requisição precisa de um cabeçalho `wsse:Security` contendo:
 
-No Windows, dentro da pasta do projeto:
+1. `wsu:Timestamp`, com `Created` e `Expires` em UTC, válido por até cinco minutos.
+2. `wsse:UsernameToken`, com usuário, `PasswordDigest`, `Nonce` aleatório e `Created`.
+
+O digest segue o perfil UsernameToken: `Base64(SHA1(nonce + created + senha))`.
+`nonce` nessa fórmula são os bytes originais, antes da conversão para Base64.
+O SHA-1 é utilizado por esse perfil de interoperabilidade; não é armazenamento de senha.
+`PasswordText` é recusado. São aceitos no máximo 60 segundos de diferença futura de relógio.
+Tokens sem campos obrigatórios, antigos, futuros, com credenciais incorretas ou com
+nonce já utilizado são recusados antes de consultar o catálogo.
+
+A proteção contra repetição utiliza `ConcurrentMapReplayCache`, compartilhado entre
+requisições da instância. Em implantação com várias instâncias, utilize um cache
+distribuído. O cache local é perdido ao reiniciar o processo.
+
+Esta implementação autentica as mensagens; não assina nem criptografa o corpo SOAP.
+Em uso remoto, publique o serviço com **HTTPS**, por exemplo atrás de um proxy com TLS,
+para proteger o conteúdo e o transporte das mensagens. Não publique senhas no Git.
+
+## Consultar pelo PowerShell
+
+Em outro terminal, configure as mesmas variáveis de ambiente e execute:
 
 ```powershell
-.\mvnw.cmd clean verify
-.\mvnw.cmd spring-boot:run
+$env:SOAP_SECURITY_USERNAME = 'aluno'
+$env:SOAP_SECURITY_PASSWORD = 'substitua-por-uma-senha-forte'
+.\exemplos\consultar-produto.ps1 -Codigo 1
+.\exemplos\consultar-produto.ps1 -Codigo 999
 ```
 
-No Linux ou macOS:
+A primeira consulta retorna Notebook; a segunda exibe um SOAP Fault de produto inexistente.
+O script gera novo nonce, digest e timestamp em cada chamada. Para outra porta:
 
-```bash
-sh mvnw clean verify
-sh mvnw spring-boot:run
+```powershell
+.\exemplos\consultar-produto.ps1 -Codigo 2 -Url 'http://localhost:8081/ws'
 ```
 
-Se já tiver Maven instalado, pode usar `mvn clean verify` e `mvn spring-boot:run`.
-O comando `clean verify` gera as classes JAXB a partir do XSD, compila o código,
-executa os testes e cria `target/produtos-soap.jar`.
-Depois de alterar o projeto, execute esse novo JAR ou copie-o para `executavel/`
-para atualizar a versão usada pelo `iniciar.bat`.
+Para gerar um XML válido para uma única chamada e enviar com `curl`:
 
-Também é possível importar `pom.xml` em uma IDE como projeto Maven.
-As classes de mensagem `ConsultarProdutoRequest` e `ConsultarProdutoResponse`
-são geradas automaticamente em `target/generated-sources/jaxb`; não devem ser editadas à mão.
+```powershell
+.\exemplos\consultar-produto.ps1 -Codigo 1 -GerarXml | Set-Content -Encoding utf8 "$env:TEMP\consulta-produto.xml"
+curl.exe -H "Content-Type: text/xml; charset=UTF-8" --data-binary "@$env:TEMP\consulta-produto.xml" http://localhost:8080/ws
+```
 
-## Produtos para testar
-
-O catálogo utiliza dados fictícios em memória, como no exemplo didático da aula.
-Não requer banco de dados. Para alterar os produtos, edite `ProdutoRepository.java`
-e compile novamente.
-
-| Código | Nome | Descrição | Marca | Quantidade em estoque |
-| --- | --- | --- | --- | ---: |
-| 1 | Notebook | Notebook com 8 GB de memória RAM e SSD de 256 GB. | TechMax | 15 |
-| 2 | Mouse | Mouse sem fio com conexão USB. | ClickPro | 40 |
-| 3 | Teclado | Teclado USB com layout ABNT2. | KeyPlus | 0 |
+Gere outra mensagem antes de cada envio. Reenviar o mesmo XML deve falhar.
+Os arquivos `exemplos/consultar-produto.xml` e `exemplos/produto-nao-encontrado.xml`
+são **modelos com placeholders**: não podem ser enviados sem preencher o cabeçalho.
+O script preenche o primeiro modelo automaticamente.
 
 ## Testar pelo SoapUI
 
-1. Inicie o serviço.
-2. No SoapUI, escolha **New SOAP Project**.
-3. Informe `http://localhost:8080/ws/produtos.wsdl` no campo **Initial WSDL**.
-4. Abra a requisição da operação `consultarProduto`.
-5. Informe `1`, `2` ou `3` no elemento `codigo` e envie a requisição.
+1. Inicie o servidor com as variáveis de ambiente configuradas.
+2. Crie um **New SOAP Project** com `http://localhost:8080/ws/produtos.wsdl`.
+3. Nas configurações do projeto, abra **WS-Security Configurations > Outgoing WS-Security Configurations**.
+4. Crie a configuração `seguranca` e adicione **Timestamp** (TTL de 300 segundos).
+5. Adicione **Username**, preencha as credenciais e selecione **PasswordDigest**, **Add Nonce** e **Add Created**.
+6. Na requisição, selecione `seguranca` em **Outgoing WSS** e informe o código do produto.
+7. Envie. O SoapUI deverá gerar os valores de segurança em cada chamada.
 
-Requisição para o produto 1, também disponível em `exemplos/consultar-produto.xml`:
+O WSDL declara a operação e o fault de aplicação. A exigência de WS-Security está
+configurada no servidor e documentada aqui; o WSDL não contém uma política WS-SecurityPolicy.
+
+## Produtos disponíveis
+
+| Código | Nome | Marca | Estoque |
+| --- | --- | --- | ---: |
+| 1 | Notebook | TechMax | 15 |
+| 2 | Mouse | ClickPro | 40 |
+| 3 | Teclado | KeyPlus | 0 |
+
+Produto sem estoque continua sendo encontrado. O campo `codigo` é obrigatório e deve
+ser um inteiro entre 1 e 2147483647.
+
+## Exception e SOAP Fault
+
+| Situação | SOAP Fault | Comportamento |
+| --- | --- | --- |
+| WS-Security ausente/inválido | `Client` | `Falha na autenticação WS-Security.`; não revela se o usuário existe |
+| Produto inexistente | `Client` | `ProdutoNaoEncontradoException` convertida em fault com o código consultado |
+| Código inválido ou ausente | `Client` | Validação XSD recusa o conteúdo após autenticar |
+| Erro inesperado | `Server` | Mensagem genérica ao cliente; detalhes registrados apenas no servidor |
+
+SOAP 1.1 retorna HTTP **500** nas falhas; confira `faultcode`, `faultstring` e `detail`.
+Erros da aplicação são tratados por `ProdutoSoapFaultResolver`. O elemento
+`consultarProdutoFault` é definido no XSD, gerado pelo JAXB e publicado no WSDL:
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
-                  xmlns:prod="http://cps.sp.gov.br/produtos">
-    <soapenv:Header/>
-    <soapenv:Body>
-        <prod:consultarProdutoRequest>
-            <prod:codigo>1</prod:codigo>
-        </prod:consultarProdutoRequest>
-    </soapenv:Body>
-</soapenv:Envelope>
+<SOAP-ENV:Fault xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+  <faultcode>SOAP-ENV:Client</faultcode>
+  <faultstring xml:lang="pt-BR">Produto não encontrado para o código 999.</faultstring>
+  <detail>
+    <p:consultarProdutoFault xmlns:p="http://cps.sp.gov.br/produtos">
+      <p:codigo>PRODUTO_NAO_ENCONTRADO</p:codigo>
+      <p:mensagem>Produto não encontrado para o código 999.</p:mensagem>
+      <p:codigoProduto>999</p:codigoProduto>
+    </p:consultarProdutoFault>
+  </detail>
+</SOAP-ENV:Fault>
 ```
 
-Resposta esperada (os prefixos XML podem variar sem alterar o significado):
+Erros internos usam `ERRO_INTERNO` no detalhe, sem stack trace nem mensagens confidenciais.
+Falhas de segurança e de validação são produzidas pelos interceptadores e não usam
+esse detalhe de aplicação. Os prefixos XML podem variar sem alterar o significado.
 
-```xml
-<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-    <SOAP-ENV:Header/>
-    <SOAP-ENV:Body>
-        <prod:consultarProdutoResponse xmlns:prod="http://cps.sp.gov.br/produtos">
-            <prod:nome>Notebook</prod:nome>
-            <prod:descricao>Notebook com 8 GB de memória RAM e SSD de 256 GB.</prod:descricao>
-            <prod:marca>TechMax</prod:marca>
-            <prod:quantidadeEstoque>15</prod:quantidadeEstoque>
-        </prod:consultarProdutoResponse>
-    </SOAP-ENV:Body>
-</SOAP-ENV:Envelope>
-```
+## Compilar e validar
 
-## Testar pelo terminal
-
-Com a aplicação em execução, na pasta do projeto:
-
-Windows:
+Requer JDK 17 ou superior e internet no primeiro uso. O Maven Wrapper baixa Maven 3.9.11.
 
 ```powershell
-curl.exe -H "Content-Type: text/xml; charset=UTF-8" --data-binary "@exemplos/consultar-produto.xml" http://localhost:8080/ws
+# Windows
+.\mvnw.cmd clean verify
 ```
-
-Linux ou macOS:
 
 ```bash
-curl -H "Content-Type: text/xml; charset=UTF-8" --data-binary "@exemplos/consultar-produto.xml" http://localhost:8080/ws
+# Linux / macOS
+sh mvnw clean verify
 ```
 
-## Códigos inválidos e produtos inexistentes
+As credenciais dos testes são fictícias e configuradas somente no contexto de teste;
+não é necessário definir as variáveis de produção para executar a suíte.
+O build gera as classes JAXB em `target/generated-sources/jaxb` e o executável
+`target/produtos-soap.jar`. Não edite as classes geradas. Após alterar o código, atualize
+o JAR pronto antes de usar `iniciar.bat`:
 
-- `codigo` é obrigatório e deve ser um inteiro entre 1 e 2147483647.
-- Código inexistente, como `999`, devolve um SOAP Fault `Client` com a mensagem
-  `Produto não encontrado para o código 999.`.
-- Código zero, negativo, texto, valor acima do limite ou campo ausente é rejeitado
-  pela validação XSD e devolve um SOAP Fault `Client`.
-- Produto com estoque zero é encontrado normalmente, com `quantidadeEstoque` igual a `0`.
-- O status HTTP de uma falha SOAP 1.1 é `500`; o motivo está no corpo XML.
-
-## Organização
-
-```text
-produtos-soap/
-├── pom.xml
-├── mvnw / mvnw.cmd / .mvn/      Maven Wrapper
-├── iniciar.bat
-├── executavel/produtos-soap.jar
-├── exemplos/                   Mensagens e contrato SOAP
-└── src/
-    ├── main/
-    │   ├── java/br/gov/sp/cps/produtos_soap/
-    │   │   ├── ProdutosSoapApplication.java
-    │   │   ├── config/WebServiceConfig.java
-    │   │   ├── domain/Produto.java
-    │   │   ├── repository/ProdutoRepository.java
-    │   │   ├── endpoint/ProdutoEndpoint.java
-    │   │   └── exception/ProdutoNaoEncontradoException.java
-    │   └── resources/
-    │       ├── produtos.xsd
-    │       └── application.properties
-    └── test/java/br/gov/sp/cps/produtos_soap/ProdutoWebServiceTest.java
+```powershell
+Copy-Item target/produtos-soap.jar executavel/produtos-soap.jar
 ```
 
-O XSD define os dados; o Maven gera as classes JAXB; o Spring publica o WSDL;
-o endpoint consulta o repositório e monta a resposta SOAP.
-O mesmo namespace é usado no XSD, WSDL e endpoint.
+Os testes verificam o catálogo, entradas inválidas, autenticação, expiração, proteção
+contra replay, HTTP 200/500, WSDL, detalhes de fault conforme o XSD e ocultação de erros
+internos. O GitHub Actions executa `clean verify` nos pushes em `seguranca` e `main`
+e nos pull requests destinados à `main`. Resultados da validação local em `VALIDACAO.txt`.
 
-## Validação
-
-Os testes automatizados cobrem os quatro campos da resposta, consulta a outros
-produtos, estoque zero, produto inexistente e entradas inválidas.
-Para executá-los: `mvnw.cmd test` no Windows ou `sh mvnw test` no Linux/macOS.
-
-O arquivo entregue passou em 10 testes automatizados e 26 verificações HTTP do
-JAR em execução com Java 17. Os resultados estão em `VALIDACAO.txt`.
-`exemplos/resposta-produto.xml` contém uma resposta recebida do serviço;
-`exemplos/produtos.wsdl` contém o contrato publicado, com o endereço padrão da porta 8080.
-
-Se a porta 8080 estiver ocupada, execute:
+## Fluxo Git da atividade
 
 ```bash
-java -jar executavel/produtos-soap.jar --server.port=8081
+git checkout -b seguranca
+# Implementar, testar e criar commits por responsabilidade
+git add pom.xml
+git commit -m "Atualiza pom.xml com dependencia WS-Security"
+# Mais commits de seguranca, exceptions, testes e documentacao
+git push -u origin seguranca
+# Validar os testes e revisar a branch antes de integrar
+git switch main
+git merge --no-ff seguranca -m "Integra seguranca WS-Security e SOAP Faults"
+git push origin main
 ```
 
-Nesse caso, use `8081` nas URLs do serviço e do WSDL.
+A branch `seguranca` é mantida no remoto para consulta e avaliação do histórico.
+
+## Organização principal
+
+- `config/SecurityConfig.java`: usuário/senha externos, ações WSS4J e cache de replay.
+- `security/ProdutoSecurityInterceptor.java`: exige digest e padroniza falha de autenticação.
+- `config/WebServiceConfig.java`: WSDL, ordem dos interceptadores e resolvedor de exceções.
+- `exception/ProdutoNaoEncontradoException.java`: exceção de domínio com o código do produto.
+- `exception/ProdutoSoapFaultResolver.java`: faults `Client`/`Server` e detalhes de aplicação.
+- `src/main/resources/produtos.xsd`: contrato de consulta, resposta e fault.
+- `src/test/java/`: testes de contrato e segurança, incluindo servidor HTTP real.
+- `exemplos/`: cliente PowerShell, modelos XML, respostas e WSDL.
+
+Os caminhos Java acima são relativos a `src/main/java/br/gov/sp/cps/produtos_soap/`.
 
 ## Referências
 
-- Material fornecido: `Web_Service_SOAP_Spring_Boot.md`, exemplo da aula de SOAP com Spring Boot.
-- Documentação oficial: https://spring.io/guides/gs/producing-web-service/
-- Spring Web Services: https://docs.spring.io/spring-ws/docs/current/reference/html/
+- [Guia oficial: produzir Web Service com Spring](https://spring.io/guides/gs/producing-web-service/)
+- [Spring Web Services](https://docs.spring.io/spring-ws/docs/4.1.4/reference/html/)
+- [Apache WSS4J: guia oficial](https://ws.apache.org/wss4j/user_guide.html)
+- [Correção do cache de replay disponível no Spring-WS 4.1.4](https://spring.io/security/cve-2026-41000/)
