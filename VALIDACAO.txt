@@ -1,35 +1,45 @@
-Validação do Web Service de produtos
+Validacao do Web Service de produtos com WS-Security
+Data: 27/10/2026
 
-Build Maven: clean verify concluído.
-Testes automatizados: 10 executados; zero falhas, erros ou testes ignorados.
-Compilação: bytecode Java 17 (release 17).
-Execução de validação: Eclipse Temurin Java 17.0.20.1, Windows.
-Catálogo: dados fictícios em memória.
+Build Maven: clean verify concluido com BUILD SUCCESS.
+Testes automatizados: 28 executados; zero falhas, erros ou testes ignorados.
+- ProdutoWebServiceTest: 10 testes de contrato, catalogo e validacao XSD autenticados.
+- ProdutoSecurityHttpTest: 18 testes, incluindo servidor HTTP real e seguranca.
 
-Verificações adicionais no JAR em execução via HTTP:
-- OK: WSDL publicado por HTTP
-- OK: Namespace do WSDL consistente
-- OK: Operação consultarProduto presente no WSDL
-- OK: Endereço SOAP do WSDL corresponde ao servidor
-- OK: Contrato contém exatamente os quatro campos solicitados
-- OK: Produto 1: resposta SOAP bem-sucedida por HTTP
-- OK: Produto 1: nome, descrição, marca e quantidade conferidos
-- OK: Produto 2: resposta SOAP bem-sucedida por HTTP
-- OK: Produto 2: nome, descrição, marca e quantidade conferidos
-- OK: Produto 3: resposta SOAP bem-sucedida por HTTP
-- OK: Produto 3: nome, descrição, marca e quantidade conferidos
-- OK: Falha SOAP por HTTP para produto inexistente
-- OK: Falha Client para produto inexistente
-- OK: Mensagem de produto inexistente contém o código consultado
-- OK: Falha SOAP por HTTP para código zero
-- OK: Falha Client para código zero
-- OK: Falha SOAP por HTTP para código negativo
-- OK: Falha Client para código negativo
-- OK: Falha SOAP por HTTP para código não numérico
-- OK: Falha Client para código não numérico
-- OK: Falha SOAP por HTTP para inteiro acima do limite
-- OK: Falha Client para inteiro acima do limite
-- OK: Falha SOAP por HTTP para código ausente
-- OK: Falha Client para código ausente
-- OK: Falha SOAP por HTTP para namespace do código incorreto
-- OK: Falha Client para namespace do código incorreto
+Ambiente: Windows, Eclipse Temurin JDK 17.0.20.1, Maven Wrapper 3.9.11.
+Spring Boot 3.5.16; Spring Web Services 4.1.4; Apache WSS4J 4.0.1.
+Compilacao com release 17. Catalogo ficticio em memoria.
+
+Cobertura automatizada:
+- Resposta com nome, descricao, marca e quantidade em estoque.
+- Produtos 1 e 2, produto 3 com estoque zero e produto inexistente.
+- XSD recusa zero, negativos, texto, overflow, campo ausente e namespace incorreto.
+- Credenciais validas resultam em HTTP 200.
+- Usuario incorreto, senha incorreta e PasswordText sao recusados.
+- Timestamp, UsernameToken, Nonce e Password obrigatorios.
+- Requisicao sem seguranca recusada antes da validacao do payload e do repositorio.
+- Timestamp expirado/futuro e UsernameToken antigo/futuro recusados.
+- Repeticao do mesmo XML recusada; apenas a primeira mensagem consulta o repositorio.
+- SOAP Fault Client com detalhe PRODUTO_NAO_ENCONTRADO e codigoProduto.
+- SOAP Fault Server com ERRO_INTERNO, sem expor mensagem interna ou nome da excecao.
+- Detalhes de falha validados contra produtos.xsd.
+- HTTP 500 nas falhas SOAP e WSDL publico declarando consultarProdutoFault.
+- Usuario e senha vazios impedem criar a configuracao de seguranca.
+
+Verificacoes adicionais do JAR pronto, com inicio e encerramento de processo:
+OK: JAR inicia e publica WSDL
+OK: WSDL publicado declara fault da operacao
+OK: Cliente PowerShell gera digest aceito pelo JAR
+OK: JAR rejeita replay do mesmo XML
+OK: Cliente PowerShell envia consulta HTTP diretamente
+OK: JAR retorna produto com estoque zero
+OK: JAR retorna SOAP Fault tipado para produto inexistente
+OK: JAR autentica e rejeita codigo zero pelo XSD
+OK: JAR recusa consulta sem cabecalho WS-Security
+OK: Cliente funciona tambem no Windows PowerShell 5.1
+OK: JAR sem credenciais encerra a inicializacao
+OK: JAR sem credenciais nao inicia o servico
+OK: JAR informa a configuracao obrigatoria ausente
+
+SHA-256 de executavel/produtos-soap.jar:
+17EAAB021161F097D047DE22AEDCCF30AC83DC5AB19426BB7AC2C856FBA1F3DD

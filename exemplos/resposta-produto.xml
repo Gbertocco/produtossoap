@@ -1,12 +1,1 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="http://cps.sp.gov.br/produtos">
-    <ns0:Header />
-    <ns0:Body>
-        <ns1:consultarProdutoResponse>
-            <ns1:nome>Notebook</ns1:nome>
-            <ns1:descricao>Notebook com 8 GB de memória RAM e SSD de 256 GB.</ns1:descricao>
-            <ns1:marca>TechMax</ns1:marca>
-            <ns1:quantidadeEstoque>15</ns1:quantidadeEstoque>
-        </ns1:consultarProdutoResponse>
-    </ns0:Body>
-</ns0:Envelope>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"><SOAP-ENV:Header/><SOAP-ENV:Body><ns2:consultarProdutoResponse xmlns:ns2="http://cps.sp.gov.br/produtos"><ns2:nome>Notebook</ns2:nome><ns2:descricao>Notebook com 8 GB de memória RAM e SSD de 256 GB.</ns2:descricao><ns2:marca>TechMax</ns2:marca><ns2:quantidadeEstoque>15</ns2:quantidadeEstoque></ns2:consultarProdutoResponse></SOAP-ENV:Body></SOAP-ENV:Envelope>
