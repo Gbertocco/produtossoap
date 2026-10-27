@@ -35,4 +35,13 @@
             </xs:sequence>
         </xs:complexType>
     </xs:element>
+    <xs:element name="consultarProdutoFault">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="codigo" type="xs:string"/>
+                <xs:element name="mensagem" type="xs:string"/>
+                <xs:element name="codigoProduto" type="tns:codigoProduto" minOccurs="0"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
 </xs:schema>

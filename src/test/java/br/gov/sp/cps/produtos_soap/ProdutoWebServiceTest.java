@@ -3,6 +3,7 @@ package br.gov.sp.cps.produtos_soap;
 import java.util.Map;
 
 import br.gov.sp.cps.produtos_soap.config.WebServiceConfig;
+import br.gov.sp.cps.produtos_soap.config.SecurityConfig;
 import br.gov.sp.cps.produtos_soap.endpoint.ProdutoEndpoint;
 import br.gov.sp.cps.produtos_soap.repository.ProdutoRepository;
 import org.junit.jupiter.api.AfterAll;
@@ -12,10 +13,11 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.ws.test.server.MockWebServiceClient;
 import org.springframework.xml.transform.StringSource;
 
-import static org.springframework.ws.test.server.RequestCreators.withPayload;
+import static org.springframework.ws.test.server.RequestCreators.withSoapEnvelope;
 import static org.springframework.ws.test.server.ResponseMatchers.clientOrSenderFault;
 import static org.springframework.ws.test.server.ResponseMatchers.noFault;
 import static org.springframework.ws.test.server.ResponseMatchers.validPayload;
@@ -28,8 +30,13 @@ class ProdutoWebServiceTest {
 
     @BeforeAll
     static void iniciar() {
-        context = new AnnotationConfigApplicationContext(
-                WebServiceConfig.class, ProdutoEndpoint.class, ProdutoRepository.class);
+        context = new AnnotationConfigApplicationContext();
+        context.setEnvironment(new MockEnvironment()
+                .withProperty("soap.security.username", SoapTestMessages.USERNAME)
+                .withProperty("soap.security.password", SoapTestMessages.PASSWORD));
+        context.register(WebServiceConfig.class, SecurityConfig.class,
+                ProdutoEndpoint.class, ProdutoRepository.class);
+        context.refresh();
         client = MockWebServiceClient.createClient(context);
     }
 
@@ -41,13 +48,12 @@ class ProdutoWebServiceTest {
     }
 
     private StringSource request(String conteudo) {
-        return new StringSource("<p:consultarProdutoRequest xmlns:p=\""
-                + WebServiceConfig.NAMESPACE + "\">" + conteudo + "</p:consultarProdutoRequest>");
+        return new StringSource(SoapTestMessages.envelope(conteudo));
     }
 
     @Test
     void retornaOsQuatroDadosDoProduto() throws Exception {
-        client.sendRequest(withPayload(request("<p:codigo>1</p:codigo>")))
+        client.sendRequest(withSoapEnvelope(request("<p:codigo>1</p:codigo>")))
                 .andExpect(noFault())
                 .andExpect(validPayload(new ClassPathResource("produtos.xsd")))
                 .andExpect(xpath("/p:consultarProdutoResponse/p:nome", NAMESPACES)
@@ -62,7 +68,7 @@ class ProdutoWebServiceTest {
 
     @Test
     void consultaOutroCodigo() {
-        client.sendRequest(withPayload(request("<p:codigo>2</p:codigo>")))
+        client.sendRequest(withSoapEnvelope(request("<p:codigo>2</p:codigo>")))
                 .andExpect(noFault())
                 .andExpect(xpath("/p:consultarProdutoResponse/p:nome", NAMESPACES)
                         .evaluatesTo("Mouse"))
@@ -72,7 +78,7 @@ class ProdutoWebServiceTest {
 
     @Test
     void produtoSemEstoqueContinuaExistindo() {
-        client.sendRequest(withPayload(request("<p:codigo>3</p:codigo>")))
+        client.sendRequest(withSoapEnvelope(request("<p:codigo>3</p:codigo>")))
                 .andExpect(noFault())
                 .andExpect(xpath("/p:consultarProdutoResponse/p:nome", NAMESPACES)
                         .evaluatesTo("Teclado"))
@@ -82,26 +88,26 @@ class ProdutoWebServiceTest {
 
     @Test
     void informaQuandoProdutoNaoExiste() {
-        client.sendRequest(withPayload(request("<p:codigo>999</p:codigo>")))
+        client.sendRequest(withSoapEnvelope(request("<p:codigo>999</p:codigo>")))
                 .andExpect(clientOrSenderFault("Produto não encontrado para o código 999."));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"0", "-1", "abc", "2147483648"})
     void rejeitaCodigoInvalido(String codigo) {
-        client.sendRequest(withPayload(request("<p:codigo>" + codigo + "</p:codigo>")))
-                .andExpect(clientOrSenderFault());
+        client.sendRequest(withSoapEnvelope(request("<p:codigo>" + codigo + "</p:codigo>")))
+                .andExpect(clientOrSenderFault("Validation error"));
     }
 
     @Test
     void exigeCodigoNaRequisicao() {
-        client.sendRequest(withPayload(request("")))
-                .andExpect(clientOrSenderFault());
+        client.sendRequest(withSoapEnvelope(request("")))
+                .andExpect(clientOrSenderFault("Validation error"));
     }
 
     @Test
     void exigeNamespaceCorretoNoCodigo() {
-        client.sendRequest(withPayload(request("<codigo>1</codigo>")))
-                .andExpect(clientOrSenderFault());
+        client.sendRequest(withSoapEnvelope(request("<codigo>1</codigo>")))
+                .andExpect(clientOrSenderFault("Validation error"));
     }
 }
